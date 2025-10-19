@@ -2,6 +2,20 @@
 
 A professional 3D interactive viewer and classifier for standard quadric surfaces with a modern GUI.
 
+## Quick Start - Double-Click to Run!
+
+**EASIEST WAY:** Just double-click the ready EXE file:
+
+```
+📂 dist/QuadricVisualizer.exe  ← Double-click this!
+```
+
+✅ No Python installation needed!  
+✅ No dependencies to install!  
+✅ Works immediately!
+
+See [QUICK_START.md](QUICK_START.md) for more details.
+
 ## Features
 
 - Interactive 3D visualization of quadric surfaces
@@ -57,11 +71,32 @@ pip install customtkinter numpy matplotlib
 
 ## Usage
 
-Run the application:
+### Method 1: Quick Start (Double-click)
+
+Simply double-click the `run.bat` file in the project root:
+
+```
+📂 Analytic-Geometry-Prefinal/
+   └── run.bat  ← Double-click this!
+```
+
+### Method 2: Command Line
 
 ```bash
 python main.py
 ```
+
+### Method 3: Create Standalone EXE
+
+Build a standalone executable that doesn't require Python:
+
+```bash
+python build_exe.py
+```
+
+Then double-click `dist/QuadricVisualizer.exe`
+
+**See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for detailed instructions.**
 
 ## Features by Module
 
