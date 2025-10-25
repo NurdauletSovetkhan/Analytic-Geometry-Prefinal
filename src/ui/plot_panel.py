@@ -6,8 +6,9 @@ Handles 3D visualization and analysis display for quadric surfaces.
 import customtkinter as ctk
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+import tkinter as tk
 
 from models.quadric_surfaces import QuadricSurface, SurfaceType, SurfaceParameters
 from utils.analysis import AnalysisGenerator
@@ -34,7 +35,62 @@ class PlotPanel(ctk.CTkFrame):
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_frame)
         self.canvas.draw()
+        
+        # Add navigation toolbar for zoom and pan
+        toolbar_frame = tk.Frame(self.plot_frame, bg='#2b2b2b')
+        toolbar_frame.pack(side=tk.TOP, fill=tk.X)
+        
+        self.toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
+        self.toolbar.config(background='#2b2b2b')
+        self.toolbar._message_label.config(background='#2b2b2b', foreground='white')
+        self.toolbar.update()
+        
+        # Pack canvas after toolbar
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        # Add custom zoom controls
+        zoom_controls = ctk.CTkFrame(self.plot_frame)
+        zoom_controls.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
+        
+        zoom_label = ctk.CTkLabel(zoom_controls, text="Quick Zoom:", font=ctk.CTkFont(size=12, weight="bold"))
+        zoom_label.pack(side=tk.LEFT, padx=5)
+        
+        zoom_in_btn = ctk.CTkButton(
+            zoom_controls, 
+            text="➕ Zoom In", 
+            command=self.zoom_in,
+            width=80,
+            height=28,
+            font=ctk.CTkFont(size=11)
+        )
+        zoom_in_btn.pack(side=tk.LEFT, padx=2)
+        
+        zoom_out_btn = ctk.CTkButton(
+            zoom_controls, 
+            text="➖ Zoom Out", 
+            command=self.zoom_out,
+            width=80,
+            height=28,
+            font=ctk.CTkFont(size=11)
+        )
+        zoom_out_btn.pack(side=tk.LEFT, padx=2)
+        
+        reset_view_btn = ctk.CTkButton(
+            zoom_controls, 
+            text="🔄 Reset View", 
+            command=self.reset_view,
+            width=90,
+            height=28,
+            font=ctk.CTkFont(size=11),
+            fg_color="gray40",
+            hover_color="gray30"
+        )
+        reset_view_btn.pack(side=tk.LEFT, padx=2)
+        
+        # Store initial view limits
+        self.initial_xlim = None
+        self.initial_ylim = None
+        self.initial_zlim = None
         
         # Analysis Results Panel
         analysis_frame = ctk.CTkFrame(self)
@@ -99,6 +155,11 @@ class PlotPanel(ctk.CTkFrame):
             self.ax.set_ylim([params.k - max_range, params.k + max_range])
             self.ax.set_zlim([params.l - max_range, params.l + max_range])
             
+            # Store initial view limits for reset
+            self.initial_xlim = self.ax.get_xlim()
+            self.initial_ylim = self.ax.get_ylim()
+            self.initial_zlim = self.ax.get_zlim()
+            
             # Add legend
             self.ax.legend(loc='upper right', fontsize=9, facecolor='#2b2b2b',
                          edgecolor='white', labelcolor='white')
@@ -127,19 +188,26 @@ class PlotPanel(ctk.CTkFrame):
         # Handle surfaces with two sheets
         if isinstance(Z, tuple):
             Z_pos, Z_neg = Z
+            # Mask invalid values (NaN, Inf)
             mask = np.isfinite(Z_pos)
-            self.ax.plot_surface(X, Y, Z_pos, where=mask, cmap=cmap, alpha=0.7, edgecolor='none')
-            self.ax.plot_surface(X, Y, Z_neg, where=mask, cmap=cmap, alpha=0.7, edgecolor='none')
+            Z_pos_masked = np.where(mask, Z_pos, np.nan)
+            Z_neg_masked = np.where(mask, Z_neg, np.nan)
+            self.ax.plot_surface(X, Y, Z_pos_masked, cmap=cmap, alpha=0.7, edgecolor='none')
+            self.ax.plot_surface(X, Y, Z_neg_masked, cmap=cmap, alpha=0.7, edgecolor='none')
         elif isinstance(Y, tuple):
             Y_pos, Y_neg = Y
             mask = np.isfinite(Y_pos)
-            self.ax.plot_surface(X, Y_pos, Z, where=mask, cmap=cmap, alpha=0.7, edgecolor='none')
-            self.ax.plot_surface(X, Y_neg, Z, where=mask, cmap=cmap, alpha=0.7, edgecolor='none')
+            Y_pos_masked = np.where(mask, Y_pos, np.nan)
+            Y_neg_masked = np.where(mask, Y_neg, np.nan)
+            self.ax.plot_surface(X, Y_pos_masked, Z, cmap=cmap, alpha=0.7, edgecolor='none')
+            self.ax.plot_surface(X, Y_neg_masked, Z, cmap=cmap, alpha=0.7, edgecolor='none')
         elif isinstance(X, tuple):
             X_pos, X_neg = X
             mask = np.isfinite(X_pos)
-            self.ax.plot_surface(X_pos, Y, Z, where=mask, cmap=cmap, alpha=0.7, edgecolor='none')
-            self.ax.plot_surface(X_neg, Y, Z, where=mask, cmap=cmap, alpha=0.7, edgecolor='none')
+            X_pos_masked = np.where(mask, X_pos, np.nan)
+            X_neg_masked = np.where(mask, X_neg, np.nan)
+            self.ax.plot_surface(X_pos_masked, Y, Z, cmap=cmap, alpha=0.7, edgecolor='none')
+            self.ax.plot_surface(X_neg_masked, Y, Z, cmap=cmap, alpha=0.7, edgecolor='none')
         else:
             self.ax.plot_surface(X, Y, Z, cmap=cmap, alpha=0.7, edgecolor='none')
     
@@ -218,3 +286,68 @@ class PlotPanel(ctk.CTkFrame):
             width=100
         )
         button.pack(pady=10)
+    
+    def zoom_in(self):
+        """Zoom in on the 3D plot"""
+        try:
+            # Get current limits
+            xlim = self.ax.get_xlim()
+            ylim = self.ax.get_ylim()
+            zlim = self.ax.get_zlim()
+            
+            # Calculate centers
+            x_center = (xlim[0] + xlim[1]) / 2
+            y_center = (ylim[0] + ylim[1]) / 2
+            z_center = (zlim[0] + zlim[1]) / 2
+            
+            # Calculate new ranges (zoom in by 20%)
+            x_range = (xlim[1] - xlim[0]) * 0.4
+            y_range = (ylim[1] - ylim[0]) * 0.4
+            z_range = (zlim[1] - zlim[0]) * 0.4
+            
+            # Set new limits
+            self.ax.set_xlim([x_center - x_range, x_center + x_range])
+            self.ax.set_ylim([y_center - y_range, y_center + y_range])
+            self.ax.set_zlim([z_center - z_range, z_center + z_range])
+            
+            self.canvas.draw()
+        except Exception as e:
+            print(f"Zoom in error: {e}")
+    
+    def zoom_out(self):
+        """Zoom out on the 3D plot"""
+        try:
+            # Get current limits
+            xlim = self.ax.get_xlim()
+            ylim = self.ax.get_ylim()
+            zlim = self.ax.get_zlim()
+            
+            # Calculate centers
+            x_center = (xlim[0] + xlim[1]) / 2
+            y_center = (ylim[0] + ylim[1]) / 2
+            z_center = (zlim[0] + zlim[1]) / 2
+            
+            # Calculate new ranges (zoom out by 25%)
+            x_range = (xlim[1] - xlim[0]) * 0.625
+            y_range = (ylim[1] - ylim[0]) * 0.625
+            z_range = (zlim[1] - zlim[0]) * 0.625
+            
+            # Set new limits
+            self.ax.set_xlim([x_center - x_range, x_center + x_range])
+            self.ax.set_ylim([y_center - y_range, y_center + y_range])
+            self.ax.set_zlim([z_center - z_range, z_center + z_range])
+            
+            self.canvas.draw()
+        except Exception as e:
+            print(f"Zoom out error: {e}")
+    
+    def reset_view(self):
+        """Reset the view to initial state"""
+        try:
+            if self.initial_xlim is not None:
+                self.ax.set_xlim(self.initial_xlim)
+                self.ax.set_ylim(self.initial_ylim)
+                self.ax.set_zlim(self.initial_zlim)
+                self.canvas.draw()
+        except Exception as e:
+            print(f"Reset view error: {e}")
