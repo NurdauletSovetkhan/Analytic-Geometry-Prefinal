@@ -1,121 +1,154 @@
-# Quadric Surface Visualizer
+# Interactive Quadric Surfaces Visualizer
 
-A professional 3D interactive viewer and classifier for standard quadric surfaces with a modern GUI.
+## Описание
+Интерактивная программа для визуализации и классификации всех стандартных квадратичных поверхностей в 3D пространстве.
 
-## Quick Start - Double-Click to Run!
+## Возможности
+- ✅ Визуализация 7 типов поверхностей:
+  1. Эллипсоид (Ellipsoid)
+  2. Эллиптический конус (Elliptic Cone)
+  3. Однополостный гиперболоид (Hyperboloid of One Sheet)
+  4. Двуполостный гиперболоид (Hyperboloid of Two Sheets)
+  5. Эллиптический параболоид (Elliptic Paraboloid)
+  6. Гиперболический параболоид (Hyperbolic Paraboloid)
+  7. Цилиндры (Elliptic / Hyperbolic / Parabolic)
 
-**EASIEST WAY:** Just double-click the ready EXE file:
+- ✅ Интерактивный 3D график с возможностью вращения мышью
+- ✅ Выбор ориентации поверхности (вдоль x, y или z оси)
+- ✅ Настройка параметров a, b, c и центра (h, k, l)
+- ✅ Кнопка "Randomize" для случайных параметров
+- ✅ Отображение уравнений и анализа поверхности
+- ✅ Визуализация следов (traces) на координатных плоскостях
+- ✅ Настройка диапазона отображения
 
-```
-📂 dist/QuadricVisualizer.exe  ← Double-click this!
-```
+## Установка и запуск
 
-✅ No Python installation needed!  
-✅ No dependencies to install!  
-✅ Works immediately!
+### Способ 1: Запуск Python скрипта
 
-See [QUICK_START.md](QUICK_START.md) for more details.
-
-## Features
-
-- Interactive 3D visualization of quadric surfaces
-- Support for 7 types of quadric surfaces:
-  - Ellipsoid
-  - Elliptic Cone
-  - Hyperboloid of One Sheet
-  - Hyperboloid of Two Sheets
-  - Elliptic Paraboloid
-  - Hyperbolic Paraboloid
-  - Cylinder
-- Customizable parameters and center coordinates
-- Real-time analysis with equations and descriptions
-- Dark mode UI with CustomTkinter
-
-## Project Structure
-
-```
-Analytic-Geometry-Prefinal/
-├── main.py                 # Entry point
-├── src/
-│   ├── __init__.py
-│   ├── models/            # Mathematical models
-│   │   ├── __init__.py
-│   │   └── quadric_surfaces.py
-│   ├── ui/                # User interface
-│   │   ├── __init__.py
-│   │   ├── main_window.py
-│   │   ├── control_panel.py
-│   │   └── plot_panel.py
-│   └── utils/             # Utility functions
-│       ├── __init__.py
-│       ├── equations.py
-│       └── descriptions.py
-├── quadric_visualizer.py  # Legacy file (deprecated)
-└── README.md
+1. Установите зависимости:
+```bash
+pip install -r requirements.txt
 ```
 
-## Installation
+2. Запустите программу:
+```bash
+python quadric_surfaces.py
+```
 
-### Requirements
+### Способ 2: Создание .exe файла
 
-- Python 3.8+
-- customtkinter
+1. Установите PyInstaller:
+```bash
+pip install pyinstaller
+```
+
+2. Создайте .exe файл:
+```bash
+pyinstaller --onefile --windowed --name="QuadricSurfaces" quadric_surfaces.py
+```
+
+3. Запустите созданный .exe из папки `dist/`:
+```bash
+.\dist\QuadricSurfaces.exe
+```
+
+## Использование программы
+
+### 1. Выбор типа поверхности
+В левой панели выберите один из 7 типов поверхностей с помощью радио-кнопок.
+
+### 2. Выбор ориентации (для всех кроме эллипсоида)
+Выберите направление оси симметрии:
+- Along z-axis
+- Along y-axis
+- Along x-axis
+
+### 3. Ввод параметров
+- **a, b, c**: Параметры формы (должны быть > 0)
+- **p**: Параметр для параболических цилиндров
+- **h, k, l**: Координаты центра поверхности
+
+### 4. Настройка диапазона отображения
+Задайте видимые диапазоны для осей X, Y, Z (по умолчанию [-10, 10])
+
+### 5. Кнопки управления
+- **Plot**: Построить график с текущими параметрами
+- **Randomize**: Сгенерировать случайные значения для a, b, c
+- **Clear**: Очистить график и результаты анализа
+
+### 6. Результаты анализа
+В нижней части окна отображается:
+- Тип выбранной поверхности
+- Уравнение в канонической форме
+- Параметры и центр
+- Качественное описание поверхности
+
+## Примеры использования
+
+### Пример 1: Эллипсоид
+- Выберите "Ellipsoid"
+- Установите a=2, b=1.5, c=1
+- Центр: (0, 0, 0)
+- Нажмите "Plot"
+
+Результат: Замкнутая поверхность, симметричная во всех координатных направлениях
+
+### Пример 2: Гиперболический параболоид (седло)
+- Выберите "Hyperbolic Paraboloid"
+- Выберите ориентацию "Along z-axis"
+- Установите a=1, b=1, c=1
+- Нажмите "Plot"
+
+Результат: Седловидная поверхность
+
+### Пример 3: Эллиптический цилиндр
+- Выберите "Cylinders"
+- Выберите "Elliptic"
+- Установите a=2, b=1
+- Нажмите "Plot"
+
+Результат: Бесконечный цилиндр вдоль оси Z
+
+## Управление 3D графиком
+- **Вращение**: Левая кнопка мыши + перетаскивание
+- **Приближение/отдаление**: Колесико мыши
+- **Панорамирование**: Правая кнопка мыши + перетаскивание
+
+## Требования
+- Python 3.8 или выше
 - numpy
 - matplotlib
+- PyPDF2 (для чтения заданий)
 
-### Install dependencies
-
-```bash
-pip install customtkinter numpy matplotlib
-```
-
-## Usage
-
-### Method 1: Quick Start (Double-click)
-
-Simply double-click the `run.bat` file in the project root:
-
-```
-📂 Analytic-Geometry-Prefinal/
-   └── run.bat  ← Double-click this!
-```
-
-### Method 2: Command Line
-
-```bash
-python main.py
-```
-
-### Method 3: Create Standalone EXE
-
-Build a standalone executable that doesn't require Python:
-
-```bash
-python build_exe.py
-```
-
-Then double-click `dist/QuadricVisualizer.exe`
-
-**See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for detailed instructions.**
-
-## Features by Module
-
-### Models (`src/models/`)
-- `quadric_surfaces.py`: Mathematical definitions and coordinate generation for all quadric surfaces
-- `SurfaceType`: Enum for surface types
-- `SurfaceParameters`: Data class for surface parameters
-- `QuadricSurface`: Main class for surface generation
-
-### UI (`src/ui/`)
-- `main_window.py`: Main application window
-- `control_panel.py`: Left panel with controls and parameter inputs
-- `plot_panel.py`: Right panel with 3D plot and analysis
-
-### Utils (`src/utils/`)
-- `equations.py`: Generates canonical equations for surfaces
-- `descriptions.py`: Provides qualitative descriptions
-
-## Author
-
-Nurdaulet Sovetkhan
+## Автор
+Разработано для курса Аналитической Геометрии
 Astana IT University
+
+## Дополнительные материалы
+
+### Уравнения поверхностей
+
+#### 1. Эллипсоид
+```
+(x-h)²/a² + (y-k)²/b² + (z-l)²/c² = 1
+```
+
+#### 2. Эллиптический конус
+Вдоль z: `x²/a² + y²/b² - z²/c² = 0`
+
+#### 3. Однополостный гиперболоид
+Вдоль z: `x²/a² + y²/b² - z²/c² = 1`
+
+#### 4. Двуполостный гиперболоид
+Вдоль z: `-x²/a² - y²/b² + z²/c² = 1`
+
+#### 5. Эллиптический параболоид
+Вдоль z: `x²/a² + y²/b² = z`
+
+#### 6. Гиперболический параболоид
+Вдоль z: `y²/b² - x²/a² = z`
+
+#### 7. Цилиндры
+- Эллиптический: `x²/a² + y²/b² = 1`
+- Гиперболический: `x²/a² - y²/b² = 1`
+- Параболический: `y² = 4p·x`
