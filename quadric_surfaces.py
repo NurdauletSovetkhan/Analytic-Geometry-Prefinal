@@ -5,7 +5,7 @@ Design an interactive Python program that visualizes and classifies all standard
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from mpl_toolkits.mplot3d import Axes3D
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -32,12 +32,17 @@ class QuadricSurfaceVisualizer:
         self.cylinder_types = ["Elliptic", "Hyperbolic", "Parabolic"]
         self.orientations = ["z-axis", "y-axis", "x-axis"]
         
+        # Quality settings for performance
+        self.quality_level = 50  # Lower = faster, Higher = smoother
+        
         self.setup_ui()
         
     def setup_ui(self):
         # Main container
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Ensure the left control column has a sensible minimum width so controls don't overflow
+        main_frame.columnconfigure(0, minsize=360)
         
         # Left panel - Controls
         control_frame = ttk.LabelFrame(main_frame, text="Control Panel", padding="10")
@@ -110,42 +115,89 @@ class QuadricSurfaceVisualizer:
         # Range settings
         range_frame = ttk.LabelFrame(control_frame, text="Visible Range", padding="10")
         range_frame.grid(row=13, column=0, sticky=(tk.W, tk.E), pady=10)
+        # Allow the Visible Range frame columns to expand/shrink responsively
+        for _col in range(4):
+            range_frame.columnconfigure(_col, weight=1)
         
         ranges = [("xmin", "xmax"), ("ymin", "ymax"), ("zmin", "zmax")]
         self.range_vars = {}
         for i, (rmin, rmax) in enumerate(ranges):
             ttk.Label(range_frame, text=f"{rmin}:").grid(row=i, column=0, sticky=tk.W)
             self.range_vars[rmin] = tk.StringVar(value="-10")
-            ttk.Entry(range_frame, textvariable=self.range_vars[rmin], width=8).grid(row=i, column=1, padx=2)
+            ttk.Entry(range_frame, textvariable=self.range_vars[rmin], width=8).grid(row=i, column=1, padx=2, sticky=(tk.W, tk.E))
             
             ttk.Label(range_frame, text=f"{rmax}:").grid(row=i, column=2, sticky=tk.W, padx=(10,0))
             self.range_vars[rmax] = tk.StringVar(value="10")
-            ttk.Entry(range_frame, textvariable=self.range_vars[rmax], width=8).grid(row=i, column=3, padx=2)
+            ttk.Entry(range_frame, textvariable=self.range_vars[rmax], width=8).grid(row=i, column=3, padx=2, sticky=(tk.W, tk.E))
+        
+        # Quality settings
+        quality_frame = ttk.LabelFrame(control_frame, text="Rendering Quality", padding="10")
+        quality_frame.grid(row=13, column=0, sticky=(tk.W, tk.E), pady=10)
+        quality_frame.grid_remove()  # Hide for now, can be shown if needed
+        
+        ttk.Label(quality_frame, text="Quality (25-100):").grid(row=0, column=0, sticky=tk.W)
+        self.quality_var = tk.IntVar(value=50)
+        quality_slider = ttk.Scale(quality_frame, from_=25, to=100, orient=tk.HORIZONTAL,
+                                   variable=self.quality_var, length=150)
+        quality_slider.grid(row=0, column=1, padx=5)
+        self.quality_label = ttk.Label(quality_frame, text="50")
+        self.quality_label.grid(row=0, column=2)
+        
+        def update_quality_label(event=None):
+            val = self.quality_var.get()
+            self.quality_label.config(text=str(val))
+            self.quality_level = val
+        
+        quality_slider.configure(command=lambda v: update_quality_label())
         
         # Buttons
         button_frame = ttk.Frame(control_frame)
         button_frame.grid(row=14, column=0, pady=10)
         
         ttk.Button(button_frame, text="Plot", command=self.plot_surface, 
-                  style="Accent.TButton").grid(row=0, column=0, padx=5, pady=5)
-        ttk.Button(button_frame, text="Randomize", command=self.randomize_parameters).grid(row=0, column=1, padx=5, pady=5)
-        ttk.Button(button_frame, text="Clear", command=self.clear_plot).grid(row=0, column=2, padx=5, pady=5)
+                  width=12).grid(row=0, column=0, padx=3, pady=5)
+        ttk.Button(button_frame, text="Randomize", command=self.randomize_parameters,
+                  width=12).grid(row=0, column=1, padx=3, pady=5)
+        ttk.Button(button_frame, text="Clear", command=self.clear_plot,
+                  width=12).grid(row=0, column=2, padx=3, pady=5)
+        
+        # Quality buttons
+        quality_btn_frame = ttk.LabelFrame(control_frame, text="⚡ Quick Quality", padding="5")
+        quality_btn_frame.grid(row=15, column=0, pady=5)
+        
+        ttk.Button(quality_btn_frame, text="Low (Fast)", 
+                  command=lambda: self.set_quality(15), width=10).grid(row=0, column=0, padx=2)
+        ttk.Button(quality_btn_frame, text="Medium", 
+                  command=lambda: self.set_quality(50), width=10).grid(row=0, column=1, padx=2)
+        ttk.Button(quality_btn_frame, text="High", 
+                  command=lambda: self.set_quality(75), width=10).grid(row=0, column=2, padx=2)
         
         # Right panel - Visualization and Analysis
         right_frame = ttk.Frame(main_frame)
         right_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
         
         # 3D Plot
-        self.fig = plt.Figure(figsize=(10, 7))
+        self.fig = plt.Figure(figsize=(10, 7), dpi=100)
         self.ax = self.fig.add_subplot(111, projection='3d')
+        
+        # Enable better performance
+        self.ax.set_proj_type('persp')
+        
         self.canvas = FigureCanvasTkAgg(self.fig, master=right_frame)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
+        # Add navigation toolbar for zoom/pan
+        toolbar_frame = ttk.Frame(right_frame)
+        toolbar_frame.grid(row=0, column=0, sticky=(tk.N, tk.W))
+        self.toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
+        self.toolbar.update()
+        
         # Analysis Results
-        analysis_frame = ttk.LabelFrame(right_frame, text="Analysis Results", padding="10")
+        analysis_frame = ttk.LabelFrame(right_frame, text="📊 Analysis Results", padding="10")
         analysis_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=10)
         
-        self.analysis_text = tk.Text(analysis_frame, height=10, width=80, wrap=tk.WORD)
+        self.analysis_text = tk.Text(analysis_frame, height=8, width=80, wrap=tk.WORD, 
+                                     font=("Consolas", 9))
         self.analysis_text.grid(row=0, column=0, sticky=(tk.W, tk.E))
         scrollbar = ttk.Scrollbar(analysis_frame, orient=tk.VERTICAL, command=self.analysis_text.yview)
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
@@ -207,6 +259,11 @@ class QuadricSurfaceVisualizer:
         self.c_var.set(str(round(random.uniform(1, 10), 2)))
         self.p_var.set(str(round(random.uniform(0.5, 5), 2)))
     
+    def set_quality(self, quality):
+        """Set rendering quality level"""
+        self.quality_level = quality
+        self.root.update_idletasks()
+    
     def clear_plot(self):
         self.ax.clear()
         self.canvas.draw()
@@ -226,10 +283,11 @@ class QuadricSurfaceVisualizer:
         h, k, l = params['h'], params['k'], params['l']
         ranges = params['ranges']
         
-        # Create meshgrid
-        x = np.linspace(ranges['xmin'], ranges['xmax'], 100)
-        y = np.linspace(ranges['ymin'], ranges['ymax'], 100)
-        z = np.linspace(ranges['zmin'], ranges['zmax'], 100)
+        # Create meshgrid with adjustable quality
+        resolution = self.quality_level
+        x = np.linspace(ranges['xmin'], ranges['xmax'], resolution)
+        y = np.linspace(ranges['ymin'], ranges['ymax'], resolution)
+        z = np.linspace(ranges['zmin'], ranges['zmax'], resolution)
         
         analysis_info = f"--- Analysis Results ---\n"
         analysis_info += f"Surface Type: {self.surface_types[surface_type]}\n"
@@ -268,30 +326,50 @@ class QuadricSurfaceVisualizer:
             messagebox.showerror("Plot Error", f"Error plotting surface: {str(e)}")
             return
         
-        # Set labels and title
-        self.ax.set_xlabel('X')
-        self.ax.set_ylabel('Y')
-        self.ax.set_zlabel('Z')
-        self.ax.set_title(f"{self.surface_types[surface_type]}")
+        # Set labels and title with better styling
+        self.ax.set_xlabel('X', fontsize=11, fontweight='bold')
+        self.ax.set_ylabel('Y', fontsize=11, fontweight='bold')
+        self.ax.set_zlabel('Z', fontsize=11, fontweight='bold')
+        self.ax.set_title(f"{self.surface_types[surface_type]}", 
+                         fontsize=13, fontweight='bold', pad=15)
+        
+        # Set background color for better contrast
+        self.ax.set_facecolor('#f0f0f0')
+        self.fig.patch.set_facecolor('white')
+        
+        # Grid styling
+        self.ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5)
         
         # Draw coordinate axes
         self.draw_axes(ranges)
         
-        # Mark center
-        self.ax.scatter([h], [k], [l], color='red', s=100, marker='o', label='Center')
-        self.ax.legend()
+        # Mark center with better visibility
+        self.ax.scatter([h], [k], [l], color='red', s=150, marker='o', 
+                       edgecolors='darkred', linewidths=2, label='Center', 
+                       alpha=0.9, zorder=100)
+        self.ax.legend(loc='upper right', fontsize=9)
+        
+        # Set equal aspect ratio if possible
+        try:
+            self.ax.set_box_aspect([1,1,1])
+        except:
+            pass
         
         self.canvas.draw()
     
     def plot_ellipsoid(self, a, b, c, h, k, l, analysis_info):
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(0, np.pi, 100)
+        res = self.quality_level
+        u = np.linspace(0, 2 * np.pi, res)
+        v = np.linspace(0, np.pi, res)
         
         X = a * np.outer(np.cos(u), np.sin(v)) + h
         Y = b * np.outer(np.sin(u), np.sin(v)) + k
         Z = c * np.outer(np.ones(np.size(u)), np.cos(v)) + l
         
-        self.ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.7, rstride=1, cstride=1)
+        # Use rcount and ccount for better performance
+        self.ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.8, 
+                            rcount=res//2, ccount=res//2, 
+                            linewidth=0, antialiased=True, shade=True)
         
         equation = f"Equation: (x-{h})²/{a}² + (y-{k})²/{b}² + (z-{l})²/{c}² = 1\n"
         description = "Description: Closed surface, symmetric in all coordinate directions\n"
@@ -303,8 +381,9 @@ class QuadricSurfaceVisualizer:
         self.plot_traces_ellipsoid(a, b, c, h, k, l)
     
     def plot_elliptic_cone(self, a, b, c, h, k, l, orientation, analysis_info):
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(-2, 2, 100)
+        res = self.quality_level
+        u = np.linspace(0, 2 * np.pi, res)
+        v = np.linspace(-2, 2, res)
         U, V = np.meshgrid(u, v)
         
         if orientation == "z-axis":
@@ -323,14 +402,17 @@ class QuadricSurfaceVisualizer:
             X = a * V + h
             equation = f"Equation: (y-{k})²/{b}² + (z-{l})²/{c}² - (x-{h})²/{a}² = 0"
         
-        self.ax.plot_surface(X, Y, Z, cmap='plasma', alpha=0.7, rstride=1, cstride=1)
+        self.ax.plot_surface(X, Y, Z, cmap='plasma', alpha=0.8, 
+                            rcount=res//2, ccount=res//2,
+                            linewidth=0, antialiased=True, shade=True)
         
         description = f"\nDescription: Double cone, vertex at ({h}, {k}, {l}), opens along {orientation}"
         self.analysis_text.insert(tk.END, analysis_info + equation + description)
     
     def plot_hyperboloid_one_sheet(self, a, b, c, h, k, l, orientation, analysis_info):
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(-2, 2, 100)
+        res = self.quality_level
+        u = np.linspace(0, 2 * np.pi, res)
+        v = np.linspace(-2, 2, res)
         U, V = np.meshgrid(u, v)
         
         if orientation == "z-axis":
@@ -349,14 +431,17 @@ class QuadricSurfaceVisualizer:
             X = a * np.sinh(V) + h
             equation = f"Equation: (y-{k})²/{b}² + (z-{l})²/{c}² - (x-{h})²/{a}² = 1"
         
-        self.ax.plot_surface(X, Y, Z, cmap='coolwarm', alpha=0.7, rstride=1, cstride=1)
+        self.ax.plot_surface(X, Y, Z, cmap='coolwarm', alpha=0.8,
+                            rcount=res//2, ccount=res//2,
+                            linewidth=0, antialiased=True, shade=True)
         
         description = f"\nDescription: Single-sheeted hyperboloid, connected surface, opens along {orientation}"
         self.analysis_text.insert(tk.END, analysis_info + equation + description)
     
     def plot_hyperboloid_two_sheets(self, a, b, c, h, k, l, orientation, analysis_info):
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(0.1, 2, 50)
+        res = self.quality_level
+        u = np.linspace(0, 2 * np.pi, res)
+        v = np.linspace(0.1, 2, res//2)
         U, V = np.meshgrid(u, v)
         
         if orientation == "z-axis":
@@ -379,22 +464,36 @@ class QuadricSurfaceVisualizer:
             equation = f"Equation: -(y-{k})²/{b}² - (z-{l})²/{c}² + (x-{h})²/{a}² = 1"
         
         # Plot both sheets
+        res = self.quality_level
         if orientation == "z-axis":
-            self.ax.plot_surface(X, Y, Z1, cmap='autumn', alpha=0.7, rstride=1, cstride=1)
-            self.ax.plot_surface(X, Y, Z2, cmap='winter', alpha=0.7, rstride=1, cstride=1)
+            self.ax.plot_surface(X, Y, Z1, cmap='autumn', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
+            self.ax.plot_surface(X, Y, Z2, cmap='winter', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
         elif orientation == "y-axis":
-            self.ax.plot_surface(X, Y1, Z, cmap='autumn', alpha=0.7, rstride=1, cstride=1)
-            self.ax.plot_surface(X, Y2, Z, cmap='winter', alpha=0.7, rstride=1, cstride=1)
+            self.ax.plot_surface(X, Y1, Z, cmap='autumn', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
+            self.ax.plot_surface(X, Y2, Z, cmap='winter', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
         else:
-            self.ax.plot_surface(X1, Y, Z, cmap='autumn', alpha=0.7, rstride=1, cstride=1)
-            self.ax.plot_surface(X2, Y, Z, cmap='winter', alpha=0.7, rstride=1, cstride=1)
+            self.ax.plot_surface(X1, Y, Z, cmap='autumn', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
+            self.ax.plot_surface(X2, Y, Z, cmap='winter', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
         
         description = f"\nDescription: Two-sheeted hyperboloid, disconnected surface, opens along {orientation}"
         self.analysis_text.insert(tk.END, analysis_info + equation + description)
     
     def plot_elliptic_paraboloid(self, a, b, c, h, k, l, orientation, analysis_info):
-        u = np.linspace(-2, 2, 100)
-        v = np.linspace(-2, 2, 100)
+        res = self.quality_level
+        u = np.linspace(-2, 2, res)
+        v = np.linspace(-2, 2, res)
         U, V = np.meshgrid(u, v)
         
         if orientation == "z-axis":
@@ -413,14 +512,17 @@ class QuadricSurfaceVisualizer:
             X = (U**2 + V**2) + h
             equation = f"Equation: (y-{k})²/{b}² + (z-{l})²/{c}² = x-{h}"
         
-        self.ax.plot_surface(X, Y, Z, cmap='Spectral', alpha=0.7, rstride=1, cstride=1)
+        self.ax.plot_surface(X, Y, Z, cmap='Spectral', alpha=0.8,
+                            rcount=res//2, ccount=res//2,
+                            linewidth=0, antialiased=True, shade=True)
         
         description = f"\nDescription: Elliptic paraboloid, opens along {orientation}, bowl-shaped"
         self.analysis_text.insert(tk.END, analysis_info + equation + description)
     
     def plot_hyperbolic_paraboloid(self, a, b, c, h, k, l, orientation, analysis_info):
-        u = np.linspace(-2, 2, 100)
-        v = np.linspace(-2, 2, 100)
+        res = self.quality_level
+        u = np.linspace(-2, 2, res)
+        v = np.linspace(-2, 2, res)
         U, V = np.meshgrid(u, v)
         
         if orientation == "z-axis":
@@ -439,14 +541,17 @@ class QuadricSurfaceVisualizer:
             X = (V**2 - U**2) + h
             equation = f"Equation: (z-{l})²/{c}² - (y-{k})²/{b}² = x-{h}"
         
-        self.ax.plot_surface(X, Y, Z, cmap='RdYlBu', alpha=0.7, rstride=1, cstride=1)
+        self.ax.plot_surface(X, Y, Z, cmap='RdYlBu', alpha=0.8,
+                            rcount=res//2, ccount=res//2,
+                            linewidth=0, antialiased=True, shade=True)
         
         description = f"\nDescription: Hyperbolic paraboloid (saddle surface), opens along {orientation}"
         self.analysis_text.insert(tk.END, analysis_info + equation + description)
     
     def plot_cylinder(self, a, b, c, p, h, k, l, cyl_type, orientation, analysis_info):
-        theta = np.linspace(0, 2 * np.pi, 100)
-        z = np.linspace(-5, 5, 100)
+        res = self.quality_level
+        theta = np.linspace(0, 2 * np.pi, res)
+        z = np.linspace(-5, 5, res)
         
         if cyl_type == "Elliptic":
             Theta, Z = np.meshgrid(theta, z)
@@ -457,8 +562,8 @@ class QuadricSurfaceVisualizer:
             description = "\nDescription: Elliptic cylinder, infinite along z-axis"
             
         elif cyl_type == "Hyperbolic":
-            t = np.linspace(-2, 2, 100)
-            z = np.linspace(-5, 5, 100)
+            t = np.linspace(-2, 2, res)
+            z = np.linspace(-5, 5, res)
             T, Z = np.meshgrid(t, z)
             
             X1 = a * np.cosh(T) + h
@@ -467,8 +572,12 @@ class QuadricSurfaceVisualizer:
             Y2 = -b * np.sinh(T) + k
             Z_plot = Z + l
             
-            self.ax.plot_surface(X1, Y1, Z_plot, cmap='copper', alpha=0.7, rstride=1, cstride=1)
-            self.ax.plot_surface(X2, Y2, Z_plot, cmap='copper', alpha=0.7, rstride=1, cstride=1)
+            self.ax.plot_surface(X1, Y1, Z_plot, cmap='copper', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
+            self.ax.plot_surface(X2, Y2, Z_plot, cmap='copper', alpha=0.8,
+                                rcount=res//2, ccount=res//2,
+                                linewidth=0, antialiased=True, shade=True)
             
             equation = f"Equation: (x-{h})²/{a}² - (y-{k})²/{b}² = 1"
             description = "\nDescription: Hyperbolic cylinder, two separate sheets, infinite along z-axis"
@@ -476,36 +585,38 @@ class QuadricSurfaceVisualizer:
             return
             
         else:  # Parabolic
-            y_vals = np.linspace(-3, 3, 100)
-            z = np.linspace(-5, 5, 100)
+            y_vals = np.linspace(-3, 3, res)
+            z = np.linspace(-5, 5, res)
             Y, Z = np.meshgrid(y_vals, z)
             X = (Y - k)**2 / (4 * p) + h
             Z_plot = Z + l
             equation = f"Equation: (y-{k})² = 4·{p}·(x-{h})"
             description = "\nDescription: Parabolic cylinder, infinite along z-axis"
         
-        self.ax.plot_surface(X, Y, Z_plot, cmap='ocean', alpha=0.7, rstride=1, cstride=1)
+        self.ax.plot_surface(X, Y, Z_plot, cmap='ocean', alpha=0.8,
+                            rcount=res//2, ccount=res//2,
+                            linewidth=0, antialiased=True, shade=True)
         self.analysis_text.insert(tk.END, analysis_info + equation + description)
     
     def plot_traces_ellipsoid(self, a, b, c, h, k, l):
         # XY-plane trace (z = l)
-        theta = np.linspace(0, 2 * np.pi, 100)
+        theta = np.linspace(0, 2 * np.pi, 80)
         x_trace = a * np.cos(theta) + h
         y_trace = b * np.sin(theta) + k
         z_trace = np.full_like(x_trace, l)
-        self.ax.plot(x_trace, y_trace, z_trace, 'r-', linewidth=2, label='XY-plane trace')
+        self.ax.plot(x_trace, y_trace, z_trace, 'r-', linewidth=2.5, label='XY-plane trace', alpha=0.9)
         
         # XZ-plane trace (y = k)
         x_trace = a * np.cos(theta) + h
         y_trace = np.full_like(x_trace, k)
         z_trace = c * np.sin(theta) + l
-        self.ax.plot(x_trace, y_trace, z_trace, 'b-', linewidth=2, label='XZ-plane trace')
+        self.ax.plot(x_trace, y_trace, z_trace, 'b-', linewidth=2.5, label='XZ-plane trace', alpha=0.9)
         
         # YZ-plane trace (x = h)
         x_trace = np.full_like(theta, h)
         y_trace = b * np.cos(theta) + k
         z_trace = c * np.sin(theta) + l
-        self.ax.plot(x_trace, y_trace, z_trace, 'g-', linewidth=2, label='YZ-plane trace')
+        self.ax.plot(x_trace, y_trace, z_trace, 'g-', linewidth=2.5, label='YZ-plane trace', alpha=0.9)
     
     def draw_axes(self, ranges):
         # Draw coordinate axes
